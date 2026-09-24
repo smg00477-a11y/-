@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">رقيم</string>
+    <string name="app_name_en">Raqeem</string>
+    <string name="app_tagline">من الورق إلى الرقمنة</string>
+    <string name="app_version_label">الإصدار التأسيسي: V0 • الإصدار الحالي: V1.0 (الإصدار المستقر والنهائي)</string>
+    <string name="app_developer">المبرمج: السيد همام محمد / Mr. Humam Mohammed</string>
+    <string name="app_copyright">© 2026 رقيم (Raqeem). جميع الحقوق محفوظة.</string>
+    <string name="library_attribution">تم تصميمه للمكتبة المركزية العامة خصيصًا</string>
+    <string name="rights_title">الحقوق</string>
+</resources>

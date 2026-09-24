@@ -1,0 +1,8 @@
+{
+  "name": "رقيم",
+  "description": "من الورق إلى الرقمنة — An offline-first Android digital library, book intelligence, and document scanning application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
