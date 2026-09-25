@@ -1,10 +1,11 @@
+
 workflows:
  
   # ---------- 1) Debug APK: no signing setup needed, installs immediately ----------
   android-apk-workflow:
     name: Android APK Generator (Debug)
     max_build_duration: 30
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     environment:
       java: 17
     triggering:
@@ -54,7 +55,7 @@ workflows:
   android-release:
     name: Android APK Generator (Release, signed)
     max_build_duration: 30
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     environment:
       java: 17
       android_signing:
@@ -99,5 +100,4 @@ workflows:
         notify:
           success: true
           failure: true
-
  
