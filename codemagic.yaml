@@ -1,29 +1,90 @@
+# ============================================================
+# codemagic.yaml — بناء تطبيق أرشيف (Android) وتحويله إلى APK
+# ضع هذا الملف في جذر المستودع (root) بنفس الاسم: codemagic.yaml
+# ============================================================
+
 workflows:
-  android-apk-workflow:
-    name: Android APK Generator
-    max_build_duration: 30
-    instance_type: mac_mini_m2
+
+  # ---------- 1) Debug APK: بدون أي إعداد توقيع، جاهز للتجربة مباشرة ----------
+  android-debug:
+    name: أرشيف - Debug APK
+    max_build_duration: 60
+    instance_type: linux_x2          # كافٍ لمشروع Android بدون iOS، وأرخص/أسرع من ماك
+    environment:
+      java: 17                        # يناسب أغلب مشاريع AGP 8.x الحديثة
     triggering:
       events:
         - push
       branch_patterns:
-        - pattern: 'main'
+        - pattern: main
           include: true
+          source: true
+      cancel_previous_builds: true
     scripts:
-      - name: Generate missing gradle wrapper
+      - name: تجهيز مسار Android SDK
         script: |
-          gradle wrapper
-      - name: Set Android SDK location
-        script: | 
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-      - name: Grant execute permission to Gradle
+
+      - name: تجهيز ملف البيئة .env (إن كان الكود يقرأ منه)
         script: |
-          chmod +x gradlew
-      - name: Build Android APK
-        script: |
-          ./gradlew assembleDebug
+          if [ -f .env.example ] && [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
+      - name: منح صلاحية تنفيذ gradlew
+        script: chmod +x ./gradlew
+
+      - name: بناء نسخة Debug
+        script: ./gradlew assembleDebug --stacktrace
+
     artifacts:
-      - app/build/outputs/apk/**/*.apk
+      - app/build/outputs/**/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - smg00477@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ---------- 2) Release APK موقّعة: تحتاج رفع Keystore داخل Codemagic أولاً ----------
+  android-release:
+    name: أرشيف - Release APK (موقّعة)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      java: 17
+      android_signing:
+        - arshif_keystore             # استخدم هذا الاسم بالحرف عند رفع الشهادة في Codemagic (Code signing identities)
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: تجهيز مسار Android SDK
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+
+      - name: تجهيز ملف البيئة .env (إن كان الكود يقرأ منه)
+        script: |
+          if [ -f .env.example ] && [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
+      - name: منح صلاحية تنفيذ gradlew
+        script: chmod +x ./gradlew
+
+      - name: بناء نسخة Release موقّعة
+        script: ./gradlew assembleRelease --stacktrace
+
+    artifacts:
+      - app/build/outputs/**/*.apk
+      - app/build/outputs/**/mapping.txt
+
     publishing:
       email:
         recipients:
