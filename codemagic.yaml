@@ -1,5 +1,6 @@
-workflows: 
-
+workflows:
+ 
+  # ---------- 1) Debug APK: no signing setup needed, installs immediately ----------
   android-apk-workflow:
     name: Android APK Generator (Debug)
     max_build_duration: 30
@@ -14,15 +15,15 @@ workflows:
           include: true
           source: true
     scripts:
-      - name: توليد ملفات gradlew المفقودة (Gradle 9.3.1 كما في gradle-wrapper.properties)
+      - name: Generate missing gradlew files (Gradle 9.3.1, matching gradle-wrapper.properties)
         script: |
           gradle wrapper --gradle-version 9.3.1
  
-      - name: تجهيز مسار Android SDK
+      - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
  
-      - name: إنشاء debug.keystore (مطلوب في جذر المشروع، وغير موجود لأنه ضمن .gitignore)
+      - name: Create debug.keystore (required at repo root, missing because it's gitignored)
         script: |
           keytool -genkeypair -v \
             -keystore debug.keystore \
@@ -32,10 +33,10 @@ workflows:
             -storepass android -keypass android \
             -dname "CN=Android Debug,O=Android,C=US"
  
-      - name: صلاحية تنفيذ gradlew
+      - name: Grant execute permission to gradlew
         script: chmod +x ./gradlew
  
-      - name: بناء نسخة Debug
+      - name: Build Debug APK
         script: ./gradlew assembleDebug --stacktrace
  
     artifacts:
@@ -49,16 +50,16 @@ workflows:
           success: true
           failure: true
  
-  # ---------- 2) Release APK موقّعة: تحتاج رفع Keystore في Codemagic أولاً ----------
+  # ---------- 2) Signed Release APK: requires uploading a keystore in Codemagic first ----------
   android-release:
-    name: Android APK Generator (Release موقّعة)
+    name: Android APK Generator (Release, signed)
     max_build_duration: 30
     instance_type: linux_x2
     environment:
       java: 17
       android_signing:
-        - raqeem_keystore     # استخدم هذا الاسم بالحرف عند رفع الشهادة (Code signing identities)
-                               # مهم جدًا: alias الشهادة يجب أن يكون upload (هذا ما يتوقعه كودك بالضبط)
+        - raqeem_keystore     # Use this exact name when uploading the keystore (Code signing identities)
+                               # IMPORTANT: the keystore's key alias must be "upload" — that's what your code expects
     triggering:
       events:
         - push
@@ -67,24 +68,24 @@ workflows:
           include: true
           source: true
     scripts:
-      - name: توليد ملفات gradlew المفقودة (Gradle 9.3.1 كما في gradle-wrapper.properties)
+      - name: Generate missing gradlew files (Gradle 9.3.1, matching gradle-wrapper.properties)
         script: |
           gradle wrapper --gradle-version 9.3.1
  
-      - name: تجهيز مسار Android SDK
+      - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
  
-      - name: تمرير متغيرات الشهادة بالأسماء التي يقرأها كودك فعليًا
+      - name: Pass signing vars under the names your code actually reads
         script: |
           echo "export KEYSTORE_PATH=$CM_KEYSTORE_PATH" >> $CM_ENV
           echo "export STORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> $CM_ENV
           echo "export KEY_PASSWORD=$CM_KEY_PASSWORD" >> $CM_ENV
  
-      - name: صلاحية تنفيذ gradlew
+      - name: Grant execute permission to gradlew
         script: chmod +x ./gradlew
  
-      - name: بناء نسخة Release موقّعة
+      - name: Build signed Release APK
         script: ./gradlew assembleRelease --stacktrace
  
     artifacts:
@@ -98,4 +99,5 @@ workflows:
         notify:
           success: true
           failure: true
+
  
