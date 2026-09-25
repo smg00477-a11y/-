@@ -1,17 +1,12 @@
-# ============================================================
-# codemagic.yaml — بناء تطبيق أرشيف (Android) وتحويله إلى APK
-# ضع هذا الملف في جذر المستودع (root) بنفس الاسم: codemagic.yaml
-# ============================================================
-
 workflows:
-
-  # ---------- 1) Debug APK: بدون أي إعداد توقيع، جاهز للتجربة مباشرة ----------
-  android-debug:
-    name: أرشيف - Debug APK
-    max_build_duration: 60
-    instance_type: linux_x2          # كافٍ لمشروع Android بدون iOS، وأرخص/أسرع من ماك
+ 
+  # ---------- 1) Debug APK: بدون رفع أي شهادة، جاهز للتثبيت والتجربة فورًا ----------
+  android-apk-workflow:
+    name: Android APK Generator (Debug)
+    max_build_duration: 30
+    instance_type: linux_x2
     environment:
-      java: 17                        # يناسب أغلب مشاريع AGP 8.x الحديثة
+      java: 17
     triggering:
       events:
         - push
@@ -19,27 +14,34 @@ workflows:
         - pattern: main
           include: true
           source: true
-      cancel_previous_builds: true
     scripts:
+      - name: توليد ملفات gradlew المفقودة (Gradle 9.3.1 كما في gradle-wrapper.properties)
+        script: |
+          gradle wrapper --gradle-version 9.3.1
+ 
       - name: تجهيز مسار Android SDK
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-
-      - name: تجهيز ملف البيئة .env (إن كان الكود يقرأ منه)
+ 
+      - name: إنشاء debug.keystore (مطلوب في جذر المشروع، وغير موجود لأنه ضمن .gitignore)
         script: |
-          if [ -f .env.example ] && [ ! -f .env ]; then
-            cp .env.example .env
-          fi
-
-      - name: منح صلاحية تنفيذ gradlew
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storetype JKS \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+ 
+      - name: صلاحية تنفيذ gradlew
         script: chmod +x ./gradlew
-
+ 
       - name: بناء نسخة Debug
         script: ./gradlew assembleDebug --stacktrace
-
+ 
     artifacts:
-      - app/build/outputs/**/*.apk
-
+      - app/build/outputs/apk/**/*.apk
+ 
     publishing:
       email:
         recipients:
@@ -47,16 +49,17 @@ workflows:
         notify:
           success: true
           failure: true
-
-  # ---------- 2) Release APK موقّعة: تحتاج رفع Keystore داخل Codemagic أولاً ----------
+ 
+  # ---------- 2) Release APK موقّعة: تحتاج رفع Keystore في Codemagic أولاً ----------
   android-release:
-    name: أرشيف - Release APK (موقّعة)
-    max_build_duration: 60
+    name: Android APK Generator (Release موقّعة)
+    max_build_duration: 30
     instance_type: linux_x2
     environment:
       java: 17
       android_signing:
-        - arshif_keystore             # استخدم هذا الاسم بالحرف عند رفع الشهادة في Codemagic (Code signing identities)
+        - raqeem_keystore     # استخدم هذا الاسم بالحرف عند رفع الشهادة (Code signing identities)
+                               # مهم جدًا: alias الشهادة يجب أن يكون upload (هذا ما يتوقعه كودك بالضبط)
     triggering:
       events:
         - push
@@ -65,26 +68,30 @@ workflows:
           include: true
           source: true
     scripts:
+      - name: توليد ملفات gradlew المفقودة (Gradle 9.3.1 كما في gradle-wrapper.properties)
+        script: |
+          gradle wrapper --gradle-version 9.3.1
+ 
       - name: تجهيز مسار Android SDK
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-
-      - name: تجهيز ملف البيئة .env (إن كان الكود يقرأ منه)
+ 
+      - name: تمرير متغيرات الشهادة بالأسماء التي يقرأها كودك فعليًا
         script: |
-          if [ -f .env.example ] && [ ! -f .env ]; then
-            cp .env.example .env
-          fi
-
-      - name: منح صلاحية تنفيذ gradlew
+          echo "export KEYSTORE_PATH=$CM_KEYSTORE_PATH" >> $CM_ENV
+          echo "export STORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> $CM_ENV
+          echo "export KEY_PASSWORD=$CM_KEY_PASSWORD" >> $CM_ENV
+ 
+      - name: صلاحية تنفيذ gradlew
         script: chmod +x ./gradlew
-
+ 
       - name: بناء نسخة Release موقّعة
         script: ./gradlew assembleRelease --stacktrace
-
+ 
     artifacts:
-      - app/build/outputs/**/*.apk
+      - app/build/outputs/apk/**/*.apk
       - app/build/outputs/**/mapping.txt
-
+ 
     publishing:
       email:
         recipients:
@@ -92,3 +99,4 @@ workflows:
         notify:
           success: true
           failure: true
+ 
